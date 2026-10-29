@@ -66,4 +66,13 @@ export type AdminState={
   server:{mode:'local'|'supabase';staffEmail?:string|null;lan:boolean;lanUrls:string[];port:number;isLocal:boolean;staffCode:string|null;lastBackup:string|null;backupError:string|null;databasePath:string|null};
 };
 
+export type ContestStatus='before'|'open'|'closed';
+export type ContestEntry={id?:number;number:number;name:string;team:string;theme:string;points?:number;first?:number;second?:number;third?:number;rank?:number};
+export type Contest={id:number;label:string;description:string;opens_time:string;closes_time:string;opens_at:string;closes_at:string;status:ContestStatus;entries:ContestEntry[];votes?:number;my_vote?:Vote|null};
+export type ContestState={now:string;contests:Contest[]};
+export type AdminContestState=ContestState&{eventDate:string};
+export type Vote={contest_id:number;created_at:string;picks:{rank:number;number:number;name:string}[]};
+export const CONTEST_STATUS_LABELS:Record<ContestStatus,string>={before:'投票前',open:'投票受付中',closed:'投票終了'};
+export const RANK_POINTS=[3,2,1];
+
 export const STATUS_LABELS:Record<RoundStatus,string>={before:'受付前',open:'受付中',full:'満員',paused:'一時停止中',closed:'受付終了',finished:'終了した回'};

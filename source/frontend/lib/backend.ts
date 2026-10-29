@@ -1,11 +1,12 @@
 import {api,ApiError} from './api';
-import type {AdminState,AdminTicket,AdminWaitEntry,Children,PublicState,Ticket,WaitEntry} from './types';
+import type {AdminContestState,AdminState,AdminTicket,AdminWaitEntry,Children,ContestState,PublicState,Ticket,Vote,WaitEntry} from './types';
 
 export type Saved={id:string;token:string;ticket?:Ticket};
 export type SavedWait={id:string;token:string;entry?:WaitEntry};
 export type IssueInput={roundId:number;children:Children;guardians:number;deviceId:string;requestId:string};
 export type LoginInput={code?:string;email?:string;password?:string};
 export type CheckinInput={roundId:number;code?:string;number?:number};
+export type VoteInput={contestId:number;numbers:number[];deviceId:string;requestId:string};
 
 export type Backend={
   publicState():Promise<PublicState>;
@@ -26,7 +27,12 @@ export type Backend={
   checkin(input:CheckinInput):Promise<{ticket:AdminTicket;replayed:boolean}>;
   exportCsv():Promise<{blob:Blob;filename:string}>;
   backup():Promise<string>;
+  contestState(deviceId?:string):Promise<ContestState>;
+  vote(input:VoteInput):Promise<{vote:Vote;replayed:boolean}>;
+  adminContestState():Promise<AdminContestState>;
+  adminContest(body:Record<string,unknown>):Promise<void>;
 };
+const ONLINE_ONLY=()=>new ApiError('コンテストの投票は、インターネット版だけで使えます。',400,'invalid');
 
 export const MODE:'local'|'supabase'=import.meta.env.MODE==='online'?'supabase':'local';
 
@@ -57,7 +63,11 @@ const localBackend:Backend={
     if(!r.ok){const b=await r.json().catch(()=>({})) as {error?:string;code?:string};throw new ApiError(b.error||'出力できませんでした。',r.status,b.code||'server');}
     return {blob:await r.blob(),filename:r.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1]||'seiriken-tickets.csv'};
   },
-  async backup(){return (await api<{filename:string}>('/api/admin/backup',{})).filename;}
+  async backup(){return (await api<{filename:string}>('/api/admin/backup',{})).filename;},
+  async contestState(){return {now:new Date().toISOString(),contests:[]};},
+  async vote(){throw ONLINE_ONLY();},
+  async adminContestState(){throw ONLINE_ONLY();},
+  async adminContest(){throw ONLINE_ONLY();}
 };
 
 let loaded:Promise<Backend>|null=null;

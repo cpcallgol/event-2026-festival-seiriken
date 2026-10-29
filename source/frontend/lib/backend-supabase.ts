@@ -1,6 +1,6 @@
 import {createClient,type SupabaseClient} from '@supabase/supabase-js';
 import {ApiError} from './api';
-import type {AdminState,AdminTicket,AdminWaitEntry,PublicState,Ticket} from './types';
+import type {AdminContestState,AdminState,AdminTicket,AdminWaitEntry,ContestState,PublicState,Ticket} from './types';
 import type {Backend} from './backend';
 
 const URL_=import.meta.env.VITE_SUPABASE_URL as string|undefined;
@@ -17,7 +17,7 @@ const networkError=()=>new ApiError('通信を確認できませんでした。�
 type RpcError={message:string;code?:string;hint?:string|null};
 function toApiError(error:RpcError){
   const code=error.hint||'';
-  if(code&&code in STATUS||['before','paused','closed','full','remaining','already','started','request_conflict','checked_in','wrong_round','cancelled','finished','invalid_code','overlap','wait_overlap','kinds','open','already_waiting','waitlist_off','password'].includes(code))
+  if(code&&code in STATUS||['before','paused','closed','full','remaining','already','started','request_conflict','checked_in','wrong_round','cancelled','finished','invalid_code','overlap','wait_overlap','kinds','open','already_waiting','waitlist_off','password','voted','entries'].includes(code))
     return new ApiError(error.message,STATUS[code]??409,code);
   if(error.code==='42501'||error.code==='PGRST301'||error.code==='PGRST303')return new ApiError('運営画面を使うにはログインしてください。',401,'login');
   if(!error.code)return networkError();
@@ -80,5 +80,13 @@ export const supabaseBackend:Backend={
     const text='\uFEFF'+[head.join(','),...lines].join('\r\n')+'\r\n';
     return {blob:new Blob([text],{type:'text/csv;charset=utf-8'}),filename:`seiriken-tickets-${stamp()}.csv`};
   },
-  async backup(){throw new ApiError('Supabase版では、データはSupabaseに保存されます。CSVで記録を残してください。',400,'invalid');}
+  async backup(){throw new ApiError('Supabase版では、データはSupabaseに保存されます。CSVで記録を残してください。',400,'invalid');},
+  contestState:deviceId=>rpc<ContestState>('contest_state',deviceId?{p_device_id:deviceId}:undefined),
+  vote:input=>rpc('cast_vote',{p_contest_id:input.contestId,p_numbers:input.numbers,p_device_id:input.deviceId,p_request_id:input.requestId},25000),
+  async adminContestState(){
+    const {data}=await db().auth.getSession();
+    if(!data.session)throw new ApiError('運営画面を使うにはログインしてください。',401,'login');
+    return rpc<AdminContestState>('admin_contest_state');
+  },
+  async adminContest(body){await rpc('admin_contest',{p:body});}
 };

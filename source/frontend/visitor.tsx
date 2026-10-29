@@ -1,8 +1,8 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
-import {Ticket as TicketIcon,Clock3,Users,ChevronRight,RefreshCw,TriangleAlert,ArrowLeft,Minus,Plus,Info,CheckCircle2,Link2,Copy,Share2,MapPin,Hourglass,X} from 'lucide-react';
+import {Ticket as TicketIcon,Clock3,Users,ChevronRight,RefreshCw,TriangleAlert,ArrowLeft,Minus,Plus,Info,CheckCircle2,Link2,Copy,Share2,MapPin,Hourglass,X,Trophy} from 'lucide-react';
 import {ApiError,newId,scope,clockSeconds,dateLabel} from './lib/api';
 import {backend,MODE,type Saved,type SavedWait} from './lib/backend';
-import type {Children,EventInfo,PublicRound,PublicState,Ticket,WaitEntry} from './lib/types';
+import type {Children,Contest,EventInfo,PublicRound,PublicState,Ticket,WaitEntry} from './lib/types';
 import {STATUS_LABELS,CHILD_KINDS,MAX_GUARDIANS,emptyChildren,childTotal,needsGuardian,childSummary,checkinPayload,overlaps,eventKinds,kindsText} from './lib/types';
 import {content} from './content';
 import {Dialog,Toast,useQr} from './ui';
@@ -13,7 +13,7 @@ type Pending={requestId:string;roundId:number;children:Children;guardians:number
 type Form={round:PublicRound;children:Children;guardians:number;mode:'issue'|'wait'};
 
 function load<T>(key:string,fallback:T):T{const raw=localStorage.getItem(key);if(!raw)return fallback;try{return JSON.parse(raw) as T;}catch{return fallback;}}
-function deviceId(){let id=localStorage.getItem(DEVICE_KEY);if(!id){id=newId();localStorage.setItem(DEVICE_KEY,id);}return id;}
+export function deviceId(){let id=localStorage.getItem(DEVICE_KEY);if(!id){id=newId();localStorage.setItem(DEVICE_KEY,id);}return id;}
 export const tone=(roundId:number)=>`tone-${roundId%6}`;
 const byStart=(a:Ticket,b:Ticket)=>a.starts_at.localeCompare(b.starts_at)||a.number-b.number;
 const LINK=/^#\/t\/([0-9a-fA-F-]{36})\/([A-Za-z0-9_-]{16,128})$/;
@@ -72,6 +72,14 @@ export default function Visitor({page,eventId}:{page:'home'|'ticket';eventId:num
   const [pending,setPending]=useState<Pending|null>(null);
   const [busy,setBusy]=useState(false),[issuing,setIssuing]=useState(false),[highlight,setHighlight]=useState<string|null>(null);
   const [toast,setToast]=useState<{text:string;error?:boolean}|null>(null);
+  const [contests,setContests]=useState<Contest[]>([]);
+  useEffect(()=>{
+    if(!WAITLIST)return;
+    let live=true;
+    const load=()=>backend().then(b=>b.contestState()).then(s=>{if(live)setContests(s.contests.filter(c=>c.status==='open'));}).catch(()=>{});
+    load();const poll=setInterval(()=>{if(document.visibilityState==='visible')load();},60000);
+    return()=>{live=false;clearInterval(poll);};
+  },[]);
   const toastTimer=useRef<ReturnType<typeof setTimeout>|null>(null),savedRef=useRef<Saved[]>([]),waitsRef=useRef<SavedWait[]>([]),busyRef=useRef(false);
   const waitRequest=useRef<{key:string;requestId:string}|null>(null);
 
@@ -283,6 +291,8 @@ export default function Visitor({page,eventId}:{page:'home'|'ticket';eventId:num
   const commonNotices=<section className="panel notices"><h2><Info size={17}/>ご注意</h2><ul>{content.notices.map(n=><li key={n}>{n}</li>)}{WAITLIST&&<li>{content.waitlistNotice}</li>}</ul></section>;
   const mineStrip=(activeTickets.length>0||openWaits.length>0)&&<a className="mine-strip" href="#/ticket"><TicketIcon size={20}/><span><strong>{[activeTickets.length?`整理券 ${activeTickets.length} 枚`:'',openWaits.length?`キャンセル待ち ${openWaits.length} 件`:''].filter(Boolean).join('・')}</strong><small>タップして表示します</small></span><ChevronRight size={18}/></a>;
 
+  const voteStrips=contests.map(c=><a key={c.id} className="mine-strip vote-strip" href={`#/vote/${c.id}`}><Trophy size={20}/><span><strong>{c.label}の投票を受付中です</strong><small>{c.closes_time} まで・タップして投票します</small></span><ChevronRight size={18}/></a>);
+
   const leaveDialog=leaveTarget&&<Dialog title="キャンセル待ちをやめる" busy={busy} onClose={()=>setLeaveTarget(null)}>
     <span className="dialog-symbol red"><TriangleAlert size={24}/></span>
     <h2>キャンセル待ちをやめますか？</h2>
@@ -339,6 +349,7 @@ export default function Visitor({page,eventId}:{page:'home'|'ticket';eventId:num
         <section className="v-hero"><span className="eyebrow">{content.eventName} 整理券</span><h1>{current.label}</h1>{current.venue&&<p className="v-venue"><MapPin size={16}/>会場：{current.venue}</p>}</section>
         {banners}
         {mineStrip}
+        {voteStrips}
         {current.notice&&<section className="panel notices event-notice"><h2><Info size={17}/>このイベントのご案内</h2><p>{current.notice}</p></section>}
         <h2 className="v-section-title">回の一覧<span>{dateLabel(serverNow)}</span></h2>
         {!roundsOf(current.id).length&&<div className="v-empty"><Clock3 size={32} strokeWidth={1.4}/><strong>まだ回が登録されていません</strong><p>しばらくしてから、もう一度開いてください。</p></div>}
@@ -349,6 +360,7 @@ export default function Visitor({page,eventId}:{page:'home'|'ticket';eventId:num
         <section className="v-hero"><span className="eyebrow">NUMBERED TICKET</span><h1>{content.eventName}の整理券</h1><p>{content.lead}</p></section>
         {banners}
         {mineStrip}
+        {voteStrips}
         {!state&&connection==='loading'&&<div className="table-loading"><RefreshCw size={16} className="spin"/>読み込み中</div>}
         {state&&eventId!==null&&!current&&<div className="v-empty"><TriangleAlert size={32} strokeWidth={1.4}/><strong>このイベントは見つかりません</strong><p>イベントの一覧から選び直してください。</p><a className="button primary" href="#/">イベントの一覧へ<ChevronRight size={16}/></a></div>}
         {showList&&<>

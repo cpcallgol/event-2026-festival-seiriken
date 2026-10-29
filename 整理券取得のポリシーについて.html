@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>整理券取得のポリシーについて.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> or <div class="page"></div> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<h1 id="整理券取得のポリシーについて">整理券取得のポリシーについて</h1>
+<p>この資料は、整理券アプリが <strong>いま、どんなルールで整理券とキャンセル待ちを扱っているか</strong> をまとめたものです。
+あわせて、学務課に <strong>「どちらを優先するか」を決めてもらいたい点</strong> を、具体的な事例つきで並べています。</p>
+<ul>
+<li>「今の動き」は、いまのアプリ（インターネット版）が実際にそう動く、という意味です。</li>
+<li>「聞くこと」は、学務課に確認したい点です。答えによっては、アプリを直します。</li>
+<li>人数は <strong>子ども1人を1名</strong> と数えます（保護者は定員に数えません）。</li>
+<li>キャンセル待ちは <strong>インターネット版だけ</strong> の機能です（Wi-Fi版にはありません）。</li>
+</ul>
+<hr>
+<h2 id="1-整理券を取るときのルールいまの動き">1. 整理券を取るときのルール（いまの動き）</h2>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>いまのルール</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>取れる時間</td>
+<td>回ごとの「受付開始」〜「受付終了」の間だけ。一時停止中は取れません</td>
+</tr>
+<tr>
+<td>定員の数え方</td>
+<td><strong>子どもの人数だけ</strong> で数えます。保護者は数えません</td>
+</tr>
+<tr>
+<td>保護者</td>
+<td>未就学児か小学生がいるときだけ、人数を聞きます（0名でも可）</td>
+</tr>
+<tr>
+<td>1枚の上限</td>
+<td>回ごとに決めた人数（例：子ども4名）まで</td>
+</tr>
+<tr>
+<td>1台のスマホ</td>
+<td>1つの回につき <strong>1枚まで</strong></td>
+</tr>
+<tr>
+<td>時間の重なり</td>
+<td>開演〜終演が重なる回の整理券は、同じスマホで同時に持てません（終演と次の開演が同じ時刻ならOK）</td>
+</tr>
+<tr>
+<td>対象の区分</td>
+<td>イベントごとに、対象外の区分（例：小学生）を選べないようにできます</td>
+</tr>
+<tr>
+<td>来場者の取消</td>
+<td>開演前まで、自分で取り消せます。入場受付が済んだ整理券は、自分では取り消せません</td>
+</tr>
+<tr>
+<td>スタッフの取消</td>
+<td>いつでも取り消せます。受付済みの整理券は、7桁の取消用パスワードが必要です</td>
+</tr>
+<tr>
+<td>番号</td>
+<td>回ごとの連番です。取り消された番号は使い回しません</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="2-キャンセル待ちのルールいまの動き">2. キャンセル待ちのルール（いまの動き）</h2>
+<ol>
+<li><strong>登録できるとき</strong>
+<ul>
+<li>満員のとき。</li>
+<li>まだ空きがあっても、<strong>申し込む人数が残りより多い</strong> とき（例：残り1名のところに子ども2名）。</li>
+<li>登録できるのは <strong>受付時間中だけ</strong> です。受付前・一時停止中・受付終了後は登録できません。</li>
+</ul>
+</li>
+<li><strong>空きがあれば、誰でも整理券を取れます。</strong> キャンセル待ちの人がいても、空きに入る人数なら、あとから来た人がその場で取れます。</li>
+<li><strong>繰り上がりの順番</strong>
+<ul>
+<li>空きが出ると、<strong>登録順</strong> に見ていきます。</li>
+<li><strong>空きに入る人数の人から</strong> 自動で整理券を発行します。</li>
+<li>入らない人は、順番を保ったまま待ちます。</li>
+</ul>
+</li>
+<li><strong>空きが出るきっかけ</strong>（どれでも繰り上がりが起きます）
+<ul>
+<li>来場者が自分で取り消したとき</li>
+<li>スタッフが取り消したとき（受付済みをパスワードで取り消した場合も含む）</li>
+<li>定員を増やしたとき</li>
+<li>一時停止中でも繰り上がります。</li>
+</ul>
+</li>
+<li><strong>繰り上がりは開演時刻まで</strong>
+<ul>
+<li>受付終了の時刻を過ぎていても、開演までは繰り上がります。</li>
+<li>開演時刻になると、残っている待ちは「終了」になります。</li>
+</ul>
+</li>
+<li><strong>本人の確認なしで、自動で整理券になります。</strong> 画面を開いていればお知らせが出ますが、開いていなければ気づかないこともあります。</li>
+<li><strong>1台のスマホでの登録</strong>
+<ul>
+<li>1つの回に1件までです。</li>
+<li>別の回なら、いくつでも登録できます。</li>
+<li>どれかが繰り上がると、時間が重なるほかの待ちは自動で外れます。</li>
+</ul>
+</li>
+<li><strong>キャンセル待ち中は、時間が重なる別の回の整理券を取れません。</strong>（「保険」で別の回を取っておくことはできません）</li>
+<li><strong>待ちの人数に上限はありません。</strong></li>
+<li><strong>人数を変えたいとき</strong> は、いったんやめて登録し直します（順番は最後になります）。</li>
+</ol>
+<blockquote>
+<p>いまのアプリは、<strong>空席を出さないこと</strong> を優先した決め方です（空きがあれば誰でも取れる・入れる人から繰り上げる）。
+「先に来た人を優先する」方針にする場合は、7章の質問1・2・5の答えによって直すところが変わります。</p>
+</blockquote>
+<hr>
+<h2 id="3-事例集a人数と順番いちばん大事なところ">3. 事例集A：人数と順番（いちばん大事なところ）</h2>
+<h3 id="事例1残り1名に兄弟2名そのあと1名の人">事例1：残り1名に兄弟2名、そのあと1名の人</h3>
+<ul>
+<li><strong>状況</strong>：定員10、9名分発行済み。兄弟（子ども2名）が申し込み、そのあとに子ども1名の人が来ます。</li>
+<li><strong>今の動き</strong>
+<ul>
+<li>兄弟はキャンセル待ちの1番目になります。</li>
+<li>あとの1名の人は、その場で整理券を取れて満員になります。</li>
+<li>兄弟は、2名分の空きが出るまで待ちます。</li>
+</ul>
+</li>
+<li><strong>聞くこと</strong>：空席を埋めることと、先に来た人を優先することの、どちらを大事にするか。
+<ul>
+<li>(a) 今のまま。空席を埋めるのを優先し、あとの1名の人が取れる。</li>
+<li>(b) 先に来た人を優先。誰かが待っている間は、新しい整理券を止める（残り1名は兄弟のために空けておくので、空席が出やすくなります）。</li>
+<li>(c) 兄弟を分ける。1名だけ整理券を出し、もう1名をキャンセル待ちにする（兄弟が別々になる可能性があります）。</li>
+<li>(d) 兄弟など少人数なら、定員を1〜2名超えてもよいことにする。</li>
+</ul>
+</li>
+</ul>
+<h3 id="事例2残り1名に3人きょうだい">事例2：残り1名に、3人きょうだい</h3>
+<ul>
+<li><strong>今の動き</strong>：事例1と同じ扱いです。人数が多いほど、待つ時間が長くなります。</li>
+<li><strong>聞くこと</strong>：人数の多い家族が不利になることを、許容するか。</li>
+</ul>
+<h3 id="事例3先頭の人が入れないとき後ろの人が先に繰り上がる">事例3：先頭の人が入れないとき、後ろの人が先に繰り上がる</h3>
+<ul>
+<li><strong>状況</strong>：満員で、待ちの順番は「①3名、②1名、③2名」。2名分のキャンセルが出ます。</li>
+<li><strong>今の動き</strong>：①は3名なので入らず、②の1名が繰り上がります。残り1名では③の2名も入らないので、空き1名のまま「受付中」になります。</li>
+<li><strong>聞くこと</strong>：①の人は「抜かされた」と感じます。
+<ul>
+<li>(a) 今のまま。空きに入る人から繰り上げる。</li>
+<li>(b) 順番どおり。先頭が入るまで、後ろの人も待つ（空席が出やすくなります）。</li>
+</ul>
+</li>
+</ul>
+<h3 id="事例4事例3で残った空き1名">事例4：事例3で残った空き1名</h3>
+<ul>
+<li><strong>今の動き</strong>：待っている誰も1名では入らないので、新しく来た1名の人がその場で取れます。</li>
+<li><strong>聞くこと</strong>：待っている人より、あとから来た人が先に入ることになりますが、それでよいか。</li>
+</ul>
+<h3 id="事例51名ずつのキャンセルが続いたとき">事例5：1名ずつのキャンセルが続いたとき</h3>
+<ul>
+<li><strong>状況</strong>：待ちの先頭が2名。1名分の空きが出て、それを新しい人が取る。もう一度1名分の空きが出ると、また新しい人が取る。</li>
+<li><strong>今の動き</strong>：先頭の2名の人は、2名分がまとめて空かない限り、ずっと入れません。</li>
+<li><strong>聞くこと</strong>：空きを数分間だけ待ちの人のために取っておく、といった仕組みが必要か。</li>
+</ul>
+<hr>
+<h2 id="4-事例集b繰り上がりのタイミングと連絡">4. 事例集B：繰り上がりのタイミングと連絡</h2>
+<h3 id="事例6自動で整理券になったのに本人が気づかない">事例6：自動で整理券になったのに、本人が気づかない</h3>
+<ul>
+<li><strong>今の動き</strong>：本人の確認なしで整理券になります。気づかずに来ないと、その席は空いたままです。</li>
+<li><strong>聞くこと</strong>
+<ul>
+<li>(a) 今のまま。自動で発行する。</li>
+<li>(b) 確認制にする。「○分以内に確定ボタンを押さないと次の人へ」（来場者の手間は増えます）。</li>
+</ul>
+</li>
+</ul>
+<h3 id="事例7開演の1分前に繰り上がる">事例7：開演の1分前に繰り上がる</h3>
+<ul>
+<li><strong>今の動き</strong>：開演の直前でも繰り上がります。会場から遠くにいる人は間に合いません。</li>
+<li><strong>聞くこと</strong>：「開演の○分前で繰り上げをやめる」という締め切りを設けるか。</li>
+</ul>
+<h3 id="事例8受付終了のあとでも繰り上がる">事例8：受付終了のあとでも繰り上がる</h3>
+<ul>
+<li><strong>状況</strong>：受付終了が開演の10分前、キャンセルが開演の5分前。</li>
+<li><strong>今の動き</strong>：開演前なので繰り上がります（新しい待ちの登録は、受付終了で締め切られます）。</li>
+<li><strong>聞くこと</strong>：受付終了後の繰り上げを認めるか。</li>
+</ul>
+<h3 id="事例9受付済みの人が帰ってしまいスタッフが取り消す">事例9：受付済みの人が帰ってしまい、スタッフが取り消す</h3>
+<ul>
+<li><strong>今の動き</strong>：開演前なら繰り上がります。開演後なら繰り上がりません。</li>
+<li><strong>聞くこと</strong>：途中で帰った人の席を、待ちの人に回すべきか。</li>
+</ul>
+<h3 id="事例10スタッフが定員を増やす席を足したなど">事例10：スタッフが定員を増やす（席を足したなど）</h3>
+<ul>
+<li><strong>今の動き</strong>：増えた分は、新しく来た人より先に、待ちの人へ自動で回ります。</li>
+<li><strong>聞くこと</strong>：このルールでよいか。</li>
+</ul>
+<hr>
+<h2 id="5-事例集c複数の回家族スマホ">5. 事例集C：複数の回・家族・スマホ</h2>
+<h3 id="事例11同じ時間の2つのイベントで待ちと保険の整理券">事例11：同じ時間の2つのイベントで、待ちと保険の整理券</h3>
+<ul>
+<li><strong>状況</strong>：12時の「お月見コップ」を待ちながら、12時の「シルバーアクセサリー作り」を保険で取りたい。</li>
+<li><strong>今の動き</strong>：できません。どちらかを選んでもらいます。</li>
+<li><strong>聞くこと</strong>：保険を認めないルールでよいか（認めると、席を押さえるだけの人が増えます）。</li>
+</ul>
+<h3 id="事例12時間が重ならない回ならいくつでも待てる">事例12：時間が重ならない回なら、いくつでも待てる</h3>
+<ul>
+<li><strong>今の動き</strong>：10時と14時の両方で待てて、両方繰り上がることもあります。</li>
+<li><strong>聞くこと</strong>：1人が待てる回の数に上限を設けるか（例：同時に2つまで）。</li>
+</ul>
+<h3 id="事例131家族が2台のスマホで並ぶ">事例13：1家族が2台のスマホで並ぶ</h3>
+<ul>
+<li><strong>状況</strong>：父のスマホで整理券、母のスマホでキャンセル待ち。または2台で別々に待って、順番を2か所確保する。</li>
+<li><strong>今の動き</strong>：防げません（スマホごとに数えているため）。</li>
+<li><strong>聞くこと</strong>：禁止とアナウンスするか、気にしないか。</li>
+</ul>
+<h3 id="事例141台のスマホを別々の2家族で使う">事例14：1台のスマホを別々の2家族で使う</h3>
+<ul>
+<li><strong>今の動き</strong>：1つの回には、1台で1件しか取れません。</li>
+<li><strong>聞くこと</strong>：一緒に来た別の家族をどう扱うか。</li>
+</ul>
+<h3 id="事例15スマホを持っていない人">事例15：スマホを持っていない人</h3>
+<ul>
+<li><strong>今の動き</strong>：整理券もキャンセル待ちも、スマホがないと取れません。スタッフが代わりに登録する機能もありません。</li>
+<li><strong>聞くこと</strong>：窓口で紙の待ちリストを作るか、スタッフのスマホで代わりに取ってよいか。</li>
+</ul>
+<hr>
+<h2 id="6-事例集d人数の数え方">6. 事例集D：人数の数え方</h2>
+<h3 id="事例161枚の上限例4名を超える家族子ども5名">事例16：1枚の上限（例：4名）を超える家族（子ども5名）</h3>
+<ul>
+<li><strong>今の動き</strong>：1枚では申し込めず、1台のスマホで1枚までなので、分けて取ることもできません。</li>
+<li><strong>聞くこと</strong>：大家族の扱い（窓口対応にする・上限を上げる・2台に分けてもらう、など）。</li>
+</ul>
+<h3 id="事例17保護者は定員に数えない">事例17：保護者は定員に数えない</h3>
+<ul>
+<li><strong>状況</strong>：子ども2名と保護者2名で、席を4つ使う。</li>
+<li><strong>聞くこと</strong>：会場の席の数で決まるなら、保護者も数えるべきか。</li>
+</ul>
+<h3 id="事例18待ち中に人数が変わった友だちが1人増えたなど">事例18：待ち中に人数が変わった（友だちが1人増えた、など）</h3>
+<ul>
+<li><strong>今の動き</strong>：いったんやめて登録し直すと、順番は最後になります。</li>
+<li><strong>聞くこと</strong>：人数を減らすだけなら、順番を保ってもよいことにするか（アプリの作り直しが必要です）。</li>
+</ul>
+<h3 id="事例19待ちの人数に上限がない100組待ちもありうる">事例19：待ちの人数に上限がない（100組待ちもありうる）</h3>
+<ul>
+<li><strong>聞くこと</strong>：上限を設けるか（例：定員の半分まで）。上限がないと、望みの薄い待ちが増えます。</li>
+</ul>
+<h3 id="事例20何番目かは見えるが入れそうかどうかは分からない">事例20：何番目かは見えるが、入れそうかどうかは分からない</h3>
+<ul>
+<li><strong>今の動き</strong>：「○番目」と出ます。ただし事例3のように人数で抜かされることがあるので、順番どおりに入れるとは限りません。</li>
+<li><strong>聞くこと</strong>：来場者への説明に「順番どおりとは限りません」と書くか。</li>
+</ul>
+<hr>
+<h2 id="7-学務課への質問リストそのまま使えます">7. 学務課への質問リスト（そのまま使えます）</h2>
+<table>
+<thead>
+<tr>
+<th>番号</th>
+<th>質問</th>
+<th>関係する事例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>空きがあるとき、<strong>キャンセル待ちの人</strong> と <strong>あとから来た人</strong> のどちらを優先しますか？</td>
+<td>1・4・5</td>
+</tr>
+<tr>
+<td>2</td>
+<td>繰り上がりは <strong>登録順に厳密に</strong> しますか、<strong>空きに入る人数の人から</strong> にしますか？</td>
+<td>3</td>
+</tr>
+<tr>
+<td>3</td>
+<td>兄弟・家族を <strong>分けて</strong> 整理券を出すことや、<strong>少しだけ定員を超える</strong> ことを認めますか？</td>
+<td>1・2</td>
+</tr>
+<tr>
+<td>4</td>
+<td>繰り上がりは <strong>自動で発行</strong> してよいですか、<strong>本人の確認</strong> が必要ですか？</td>
+<td>6</td>
+</tr>
+<tr>
+<td>5</td>
+<td>繰り上がりの <strong>締め切り</strong>（開演の何分前まで）はありますか？</td>
+<td>7・8・9</td>
+</tr>
+<tr>
+<td>6</td>
+<td>時間が重なる回の <strong>保険の整理券</strong> は、禁止のままでよいですか？</td>
+<td>11</td>
+</tr>
+<tr>
+<td>7</td>
+<td>1家族が <strong>同時に待てる回の数</strong> や、待ちの <strong>全体の上限</strong> を決めますか？</td>
+<td>12・19</td>
+</tr>
+<tr>
+<td>8</td>
+<td><strong>スマホを持っていない人</strong> や <strong>大家族</strong>（上限を超える人数）は、どうしますか？</td>
+<td>14・15・16</td>
+</tr>
+<tr>
+<td>9</td>
+<td><strong>保護者を定員に含めますか？</strong></td>
+<td>17</td>
+</tr>
+<tr>
+<td>10</td>
+<td><strong>複数のスマホで並ぶこと</strong> は、禁止しますか？</td>
+<td>13</td>
+</tr>
+</tbody>
+</table>
+<h3 id="回答メモ">回答メモ</h3>
+<table>
+<thead>
+<tr>
+<th>番号</th>
+<th>学務課の回答</th>
+<th>アプリを直す必要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>2</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>3</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>4</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>5</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>6</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>7</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>8</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>9</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>10</td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+</body>
+</html>

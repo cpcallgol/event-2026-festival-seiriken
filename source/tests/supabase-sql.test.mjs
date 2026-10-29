@@ -6,7 +6,7 @@ import {readFileSync} from 'node:fs';
 import {randomUUID} from 'node:crypto';
 import {PGlite} from '@electric-sql/pglite';
 
-const migrations=['001_init.sql','002_children.sql','003_name.sql','004_checkin.sql','005_events_waitlist.sql','006_cancel_checked_in.sql','007_list_all_tickets.sql','008_wait_blocks_overlap.sql','009_wait_partial.sql','010_event_kinds.sql'].map(f=>readFileSync(new URL('../../supabase/migrations/'+f,import.meta.url),'utf8'));
+const migrations=['001_init.sql','002_children.sql','003_name.sql','004_checkin.sql','005_events_waitlist.sql','006_cancel_checked_in.sql','007_list_all_tickets.sql','008_wait_blocks_overlap.sql','009_wait_partial.sql','010_event_kinds.sql','011_contest.sql'].map(f=>readFileSync(new URL('../../supabase/migrations/'+f,import.meta.url),'utf8'));
 const STAFF='00000000-0000-4000-8000-000000000001';
 const jst=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'});
 const day=offset=>jst.format(new Date(Date.now()+offset*86400000));
@@ -313,6 +313,60 @@ test('イベントの対象: 対象外の区分の子どもでは整理券もキ
   await op(db,{action:'event_update',id:ev.id,label:'ボルダリング',venue:'',notice:'',kinds:['elementary']});
   assert.deepEqual(await kindsOf(),['elementary']);
   await assert.rejects(call(db,'anon','admin_operation_base',[JSON.stringify({action:'event_delete',id:ev.id})]),/does not exist|permission denied/);
+});
+
+test('コンテストの投票: 1位〜3位を番号で選び、1端末1回。順位は点数→1位の数で決まり、運営だけが見られる', async()=>{
+  const db=await setup();
+  const pub=async device=>(await as(db,'anon','select public.contest_state($1) as r',[device??null])).r.contests;
+  const first=(await pub())[0];
+  assert.equal(first.label,'仮装コンテスト');assert.deepEqual(first.entries,[]);assert.equal(first.votes,undefined);
+  await assert.rejects(call(db,'anon','admin_contest_state'),/permission denied/);
+  await assert.rejects(call(db,'anon','admin_contest',[JSON.stringify({action:'contest_create',label:'x',opensTime:'00:00',closesTime:'23:59'})]),/permission denied/);
+  const admin=body=>call(db,'staff','admin_contest',[JSON.stringify(body)]);
+  const id=first.id;
+  await admin({action:'contest_update',id,label:'仮装コンテスト',description:'',opensTime:'00:00',closesTime:'23:59'});
+  await fails(admin({action:'contest_update',id,label:'仮装コンテスト',opensTime:'12:00',closesTime:'11:00'}),'invalid');
+  for(const [n,name] of [[1,'A'],[2,'B'],[3,'C'],[4,'D']])await admin({action:'entry_create',contestId:id,number:n,name,team:'2年 機械科',theme:'魔法使い'});
+  await fails(admin({action:'entry_create',contestId:id,number:1,name:'重複'}),'invalid');
+  assert.deepEqual((await pub())[0].entries[0],{number:1,name:'A',team:'2年 機械科',theme:'魔法使い'});
+  const vote=(numbers,device=randomUUID(),request=randomUUID())=>call(db,'anon','cast_vote',[id,numbers,device,request]);
+  const device=randomUUID(),request=randomUUID();
+  const v=await vote([2,1,3],device,request);
+  assert.equal(v.replayed,false);assert.deepEqual(v.vote.picks.map(p=>[p.rank,p.number]),[[1,2],[2,1],[3,3]]);
+  assert.equal((await vote([2,1,3],device,request)).replayed,true);
+  await fails(vote([1,2,3],device),'voted');
+  await fails(vote([1,1,2]),'invalid');
+  await fails(vote([1,2]),'invalid');
+  await fails(vote([1,2,9]),'entries');
+  await fails(call(db,'anon','cast_vote',[999,[1,2,3],randomUUID(),randomUUID()]),'not_found');
+  assert.deepEqual((await pub(device))[0].my_vote.picks.map(p=>p.number),[2,1,3]);
+  assert.equal((await pub(randomUUID()))[0].my_vote,null);
+  await vote([1,2,3]);await vote([1,4,2]);
+  // A: 1位2票+2位1票=8点 / B: 1位・2位・3位を1票ずつ=6点 / C: 3位2票=2点 / D: 2位1票=2点（C・Dは1位の数も同じなので同順位）
+  const ranking=async()=>(await call(db,'staff','admin_contest_state')).contests.find(c=>c.id===id);
+  const s=await ranking();
+  assert.equal(s.votes,3);
+  assert.deepEqual(s.entries.map(e=>[e.number,e.points,e.first,e.rank]),[[1,8,2,1],[2,6,1,2],[3,2,0,3],[4,2,0,3]]);
+  await fails(admin({action:'entry_delete',id:s.entries[0].id}),'invalid');
+  await fails(admin({action:'contest_delete',id}),'invalid');
+  await admin({action:'contest_update',id,label:'仮装コンテスト',opensTime:'00:00',closesTime:'00:01'});
+  await fails(vote([1,2,3]),'closed');
+  await admin({action:'contest_reset',id});
+  assert.equal((await ranking()).votes,0);
+  assert.equal((await pub(device))[0].my_vote,null);
+  await admin({action:'contest_update',id,label:'仮装コンテスト',opensTime:'00:00',closesTime:'23:59'});
+  await vote([2,1,3],device);await vote([2,3,1]);await vote([1,3,4]);
+  // A・Bとも6点。Bは1位が2票、Aは1票なのでBが上
+  assert.deepEqual((await ranking()).entries.map(e=>[e.number,e.points,e.rank]),[[1,6,2],[2,6,1],[3,5,3],[4,1,4]]);
+  await admin({action:'contest_reset',id});
+  const two=(await admin({action:'contest_create',label:'ダンス',opensTime:'00:00',closesTime:'23:59'})).id;
+  await fails(call(db,'anon','cast_vote',[two,[1],randomUUID(),randomUUID()]),'invalid');
+  await admin({action:'entry_create',contestId:two,number:5,name:'E'});await admin({action:'entry_create',contestId:two,number:6,name:'F'});
+  await fails(call(db,'anon','cast_vote',[two,[5,6,5],randomUUID(),randomUUID()]),'invalid');
+  assert.equal((await call(db,'anon','cast_vote',[two,[6,5],randomUUID(),randomUUID()])).vote.picks.length,2);
+  await admin({action:'contest_reset',id:two});
+  await admin({action:'contest_delete',id:two});
+  assert.equal((await pub()).length,1);
 });
 
 test('時間の重なり: 開演〜終演が重なる回の整理券は同じ端末で持てない', async()=>{

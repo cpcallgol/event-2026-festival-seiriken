@@ -103,4 +103,25 @@ try{
   await rpc('admin_operation',{p:{action:'pause',id}},staff).catch(()=>{});
   console.log(`確認用の回「自動確認」（id ${id}）は一時停止にしました。不要なら、本番前にプロジェクトを作り直すか、そのままにしておいてください。`);
 }
+
+// コンテストの投票（011_contest.sql を実行したあと）。確認用のコンテストを作り、最後に削除します
+const contest=await rpc('admin_contest',{p:{action:'contest_create',label:'自動確認',opensTime:'00:00',closesTime:'23:59'}},staff);
+try{
+  for(const n of [1,2,3])await rpc('admin_contest',{p:{action:'entry_create',contestId:contest.id,number:n,name:`確認${n}`}},staff);
+  const voteTable=await fetch(`${URL_}/rest/v1/contest_votes?select=*`,{headers:{apikey:KEY,Authorization:`Bearer ${KEY}`}});
+  assert.notEqual(voteTable.status,200,'来場者が contest_votes 表を直接読めてしまいます');
+  const anonResult=await rpc('admin_contest_state',{}).then(()=>'ok',e=>e.status);
+  assert.notEqual(anonResult,'ok','ログインしていない人が順位を見られてしまいます');
+  const device=randomUUID();
+  await rpc('cast_vote',{p_contest_id:contest.id,p_numbers:[2,1,3],p_device_id:device,p_request_id:randomUUID()});
+  await fails(rpc('cast_vote',{p_contest_id:contest.id,p_numbers:[1,2,3],p_device_id:device,p_request_id:randomUUID()}),'voted');
+  const mine=(await rpc('contest_state',{p_device_id:device})).contests.find(c=>c.id===contest.id);
+  assert.deepEqual(mine.my_vote.picks.map(p=>p.number),[2,1,3]);
+  const result=(await rpc('admin_contest_state',{},staff)).contests.find(c=>c.id===contest.id);
+  assert.equal(result.entries.find(e=>e.number===2).rank,1);
+  step('コンテストの投票（1端末1回・順位は運営だけ・投票の表は読めない）');
+}finally{
+  await rpc('admin_contest',{p:{action:'contest_reset',id:contest.id}},staff).catch(()=>{});
+  await rpc('admin_contest',{p:{action:'contest_delete',id:contest.id}},staff).catch(()=>{});
+}
 console.log('すべての確認が終わりました。');

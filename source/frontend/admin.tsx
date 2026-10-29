@@ -1,5 +1,5 @@
 import {useCallback,useEffect,useRef,useState,type CSSProperties,type FormEvent,type ReactNode} from 'react';
-import {Ticket as TicketIcon,CalendarClock,ListOrdered,ChartNoAxesCombined,ChartColumn,QrCode,ScanQrCode,Plus,Pencil,Trash2,Pause,Play,RefreshCw,Search,TriangleAlert,ChevronRight,Download,Printer,KeyRound,PanelLeftClose,PanelLeftOpen,ShieldCheck,Wifi,DatabaseBackup,LockKeyhole,Users,XCircle,ExternalLink,LogOut,Cloud,CircleCheck,MapPin,Hourglass,Layers,CopyPlus} from 'lucide-react';
+import {Ticket as TicketIcon,CalendarClock,ListOrdered,ChartNoAxesCombined,ChartColumn,QrCode,ScanQrCode,Plus,Pencil,Trash2,Pause,Play,RefreshCw,Search,TriangleAlert,ChevronRight,Download,Printer,KeyRound,PanelLeftClose,PanelLeftOpen,ShieldCheck,Wifi,DatabaseBackup,LockKeyhole,Users,XCircle,ExternalLink,LogOut,Cloud,CircleCheck,MapPin,Hourglass,Layers,CopyPlus,Trophy} from 'lucide-react';
 import {ApiError,fmt} from './lib/api';
 import {backend,MODE} from './lib/backend';
 import type {AdminRound,AdminState,AdminTicket,AdminWaitEntry,ChildKind,EventInfo} from './lib/types';
@@ -8,18 +8,20 @@ import {content} from './content';
 import {Dialog,Toast,useQr} from './ui';
 import {tone,partyText} from './visitor';
 import CheckinTab from './checkin';
+import ContestTab from './contest-admin';
 
-type Tab='rounds'|'checkin'|'tickets'|'summary'|'poster';
+type Tab='rounds'|'checkin'|'tickets'|'summary'|'poster'|'contest';
 type RoundForm={id?:number;eventId:string;label:string;startsTime:string;opensTime:string;closesTime:string;capacity:string;maxParty:string;finishAfterMinutes:string;durationMinutes:string};
 type EventForm={id?:number;label:string;venue:string;notice:string;kinds:ChildKind[]};
 const CHECKIN=MODE==='supabase',WAITLIST=MODE==='supabase';
-const tabs=[{id:'rounds' as Tab,label:'イベントと回',icon:CalendarClock},...(CHECKIN?[{id:'checkin' as Tab,label:'入場受付',icon:ScanQrCode}]:[]),{id:'tickets' as Tab,label:'整理券の一覧',icon:ListOrdered},{id:'summary' as Tab,label:'集計・出力',icon:ChartNoAxesCombined},{id:'poster' as Tab,label:'掲示用QR',icon:QrCode}];
+const tabs=[{id:'rounds' as Tab,label:'イベントと回',icon:CalendarClock},...(CHECKIN?[{id:'checkin' as Tab,label:'入場受付',icon:ScanQrCode}]:[]),{id:'tickets' as Tab,label:'整理券の一覧',icon:ListOrdered},{id:'summary' as Tab,label:'集計・出力',icon:ChartNoAxesCombined},{id:'poster' as Tab,label:'掲示用QR',icon:QrCode},...(CHECKIN?[{id:'contest' as Tab,label:'コンテスト',icon:Trophy}]:[])];
 const titles:Record<Tab,{title:string;subtitle:string;kicker:string}>={
   rounds:{title:'イベントと回',subtitle:'イベント（会場）を登録し、イベントごとに回の定員と受付時間を登録します。受付は時間になると自動で始まり、満員か終了時刻で締め切ります。',kicker:'EVENTS & ROUNDS'},
   checkin:{title:'入場受付',subtitle:'iPadなどのカメラで来場者の整理券のQRコードを読み取ると、受付済みになります。',kicker:'CHECK-IN'},
   tickets:{title:'整理券の一覧',subtitle:WAITLIST?'入場口で番号を照合したり、疑わしい整理券を取り消したりできます。回ごとのキャンセル待ちもここで確認できます。':'入場口で番号を照合したり、疑わしい整理券を取り消したりできます。',kicker:'TICKETS'},
   summary:{title:'集計・出力',subtitle:'配布した枚数と人数を確認し、CSVで記録を残します。',kicker:'SUMMARY'},
-  poster:{title:'掲示用QR',subtitle:'会場に貼るQRコードを表示・印刷します。',kicker:'POSTER'}
+  poster:{title:'掲示用QR',subtitle:'会場に貼るQRコードを表示・印刷します。',kicker:'POSTER'},
+  contest:{title:'コンテスト',subtitle:'仮装コンテストなどの出場者を登録し、来場者の投票から順位を確認します。投票用のQRコードもここで印刷します。',kicker:'CONTEST'}
 };
 const tabFromHash=():Tab=>CHECKIN&&location.hash==='#/admin/checkin'?'checkin':'rounds';
 const WIFI_KEY='seiriken-admin-wifi-v1';
@@ -99,6 +101,7 @@ export default function Admin(){
   const toastTimer=useRef<ReturnType<typeof setTimeout>|null>(null),listSerial=useRef(0);
 
   const notify=useCallback((text:string,error=false)=>{setToast({text,error});if(toastTimer.current)clearTimeout(toastTimer.current);toastTimer.current=setTimeout(()=>setToast(null),error?9000:5000);},[]);
+  const toLogin=useCallback(()=>setAuth('login'),[]);
   const refresh=useCallback(async()=>{
     try{const s=await (await backend()).adminState();setState(s);setAuth('ok');setConnection('ok');return s;}
     catch(e){if(e instanceof ApiError&&e.status===401){setAuth('login');setConnection('ok');}else setConnection('error');return null;}
@@ -366,6 +369,7 @@ export default function Admin(){
         </>}
 
         {tab==='poster'&&<PosterTab state={state}/>}
+        {tab==='contest'&&CHECKIN&&<ContestTab notify={notify} onLogin={toLogin}/>}
       </main>
     </div>
 
