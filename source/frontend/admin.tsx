@@ -1,5 +1,5 @@
 import {useCallback,useEffect,useRef,useState,type CSSProperties,type FormEvent,type ReactNode} from 'react';
-import {Ticket as TicketIcon,CalendarClock,ListOrdered,ChartNoAxesCombined,ChartColumn,QrCode,ScanQrCode,Plus,Pencil,Trash2,Pause,Play,RefreshCw,Search,TriangleAlert,ChevronRight,Download,Printer,KeyRound,PanelLeftClose,PanelLeftOpen,ShieldCheck,Wifi,DatabaseBackup,LockKeyhole,Users,XCircle,ExternalLink,LogOut,Cloud,CircleCheck,MapPin,Hourglass,Layers,CopyPlus,Trophy} from 'lucide-react';
+import {Ticket as TicketIcon,CalendarClock,ListOrdered,ChartNoAxesCombined,ChartColumn,QrCode,ScanQrCode,Plus,Pencil,Trash2,Pause,Play,RefreshCw,Search,TriangleAlert,ChevronRight,Download,Printer,KeyRound,PanelLeftClose,PanelLeftOpen,ShieldCheck,Wifi,DatabaseBackup,LockKeyhole,Users,XCircle,ExternalLink,Cloud,CircleCheck,MapPin,Hourglass,Layers,CopyPlus,Trophy} from 'lucide-react';
 import {ApiError,fmt} from './lib/api';
 import {backend,MODE} from './lib/backend';
 import type {AdminRound,AdminState,AdminTicket,AdminWaitEntry,ChildKind,EventInfo} from './lib/types';
@@ -139,11 +139,6 @@ export default function Admin(){
     catch(err){setLoginError(err instanceof Error?err.message:'確認できませんでした。');}
     finally{setBusy(false);}
   }
-  async function logout(){
-    setBusy(true);
-    try{await (await backend()).logout();}catch{}
-    finally{setBusy(false);setState(null);setAuth('login');}
-  }
   async function operate(body:Record<string,unknown>,done:string){
     setBusy(true);
     try{await (await backend()).adminOperation(body);notify(done);await refresh();return true;}
@@ -255,7 +250,6 @@ export default function Admin(){
       <div className="sidebar-bottom">
         {state?.server.staffCode&&state.server.lan&&<div className="rate-card"><KeyRound size={22}/><div><span>スタッフコード（他の端末用）</span><strong className="mono">{state.server.staffCode}</strong></div></div>}
         <a className="help-link" href="#/" target="_blank" rel="noreferrer"><ExternalLink size={16}/>来場者向けの画面を開く</a>
-        {MODE==='supabase'&&<button className="help-link" onClick={logout} disabled={busy}><LogOut size={16}/>ログアウト{state?.server.staffEmail?`（${state.server.staffEmail}）`:''}</button>}
         <div className="sidebar-footer"><span className="little-dot"/>紅華祭 整理券システム<span>{MODE==='supabase'?'Online v1.0':'Local v1.0'}</span></div>
       </div>
     </aside>

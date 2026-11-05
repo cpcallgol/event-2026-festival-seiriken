@@ -50,10 +50,8 @@ export const supabaseBackend:Backend={
   lookupWaitlist:items=>rpc('lookup_waitlist',{p_items:items.map(x=>({id:x.id,token:x.token}))}),
   leaveWaitlist:(id,token)=>rpc('leave_waitlist',{p_id:id,p_token:token}),
   async adminState(){
-    const {data}=await db().auth.getSession();
-    if(!data.session)throw new ApiError('運営画面を使うにはログインしてください。',401,'login');
     const s=await rpc<Omit<AdminState,'server'>>('admin_state');
-    return {...s,server:{mode:'supabase',lan:false,lanUrls:[location.origin+location.pathname],port:0,isLocal:false,staffCode:null,lastBackup:null,backupError:null,databasePath:null,staffEmail:data.session.user.email??null}};
+    return {...s,server:{mode:'supabase',lan:false,lanUrls:[location.origin+location.pathname],port:0,isLocal:false,staffCode:null,lastBackup:null,backupError:null,databasePath:null,staffEmail:null}};
   },
   async login(input){
     let error:{message:string;status?:number}|null;
@@ -83,10 +81,6 @@ export const supabaseBackend:Backend={
   async backup(){throw new ApiError('Supabase版では、データはSupabaseに保存されます。CSVで記録を残してください。',400,'invalid');},
   contestState:deviceId=>rpc<ContestState>('contest_state',deviceId?{p_device_id:deviceId}:undefined),
   vote:input=>rpc('cast_vote',{p_contest_id:input.contestId,p_numbers:input.numbers,p_device_id:input.deviceId,p_request_id:input.requestId},25000),
-  async adminContestState(){
-    const {data}=await db().auth.getSession();
-    if(!data.session)throw new ApiError('運営画面を使うにはログインしてください。',401,'login');
-    return rpc<AdminContestState>('admin_contest_state');
-  },
+  adminContestState:()=>rpc<AdminContestState>('admin_contest_state'),
   async adminContest(body){await rpc('admin_contest',{p:body});}
 };

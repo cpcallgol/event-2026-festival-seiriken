@@ -7,6 +7,7 @@ import {randomUUID} from 'node:crypto';
 import {PGlite} from '@electric-sql/pglite';
 
 const migrations=['001_init.sql','002_children.sql','003_name.sql','004_checkin.sql','005_events_waitlist.sql','006_cancel_checked_in.sql','007_list_all_tickets.sql','008_wait_blocks_overlap.sql','009_wait_partial.sql','010_event_kinds.sql','011_contest.sql'].map(f=>readFileSync(new URL('../../supabase/migrations/'+f,import.meta.url),'utf8'));
+const noLogin=readFileSync(new URL('../../supabase/migrations/012_no_login.sql',import.meta.url),'utf8');
 const STAFF='00000000-0000-4000-8000-000000000001';
 const jst=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'});
 const day=offset=>jst.format(new Date(Date.now()+offset*86400000));
@@ -52,6 +53,29 @@ test('来場者は表を直接読めず、運営用の関数も呼べない', as
   const s=await call(db,'anon','public_state');
   assert.deepEqual(s.rounds,[]);
   assert.equal(s.eventDate,day(0));
+});
+
+test('012 のあとは、ログインしていなくても運営用の関数を呼べる（表と private は今までどおり閉じたまま）', async()=>{
+  const db=await setup();
+  await db.exec(noLogin);
+  await db.exec(noLogin);
+  const {id}=await call(db,'anon','admin_operation',[JSON.stringify({...round,capacity:4})]);
+  assert.equal((await call(db,'anon','admin_state')).rounds[0].id,id);
+  const t=(await call(db,'anon','issue_ticket',[id,kids(2),0,randomUUID(),randomUUID()])).ticket;
+  assert.equal((await call(db,'anon','admin_list_tickets',[id,null])).tickets[0].id,t.id);
+  await call(db,'anon','admin_checkin',[id,t.checkin_code,null]);
+  await db.query("select private.set_cancel_password('7654321')");
+  await fails(call(db,'anon','admin_cancel',[t.id]),'password');
+  assert.equal((await call(db,'anon','admin_cancel',[t.id,'7654321'])).ticket.status,'cancelled');
+  assert.equal((await call(db,'anon','admin_list_waitlist',[id])).entries.length,0);
+  assert.equal((await call(db,'anon','admin_export_tickets')).length,1);
+  assert.equal((await call(db,'anon','admin_contest_state')).contests.length,1);
+  await call(db,'anon','admin_contest',[JSON.stringify({action:'contest_create',label:'x',opensTime:'00:00',closesTime:'23:59'})]);
+  await assert.rejects(as(db,'anon','select * from public.tickets'),/permission denied/);
+  await assert.rejects(as(db,'anon','select * from public.contest_votes'),/permission denied/);
+  await assert.rejects(as(db,'anon',"select private.set_cancel_password('1111111')"),/permission denied/);
+  await assert.rejects(as(db,'anon',"select private.admin_operation_base('{}'::jsonb)"),/permission denied/);
+  await assert.rejects(as(db,'anon',"select * from private.secrets"),/permission denied/);
 });
 
 test('受付前・受付中・一時停止・受付終了・終了した回の判定', async()=>{
