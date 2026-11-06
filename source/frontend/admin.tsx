@@ -2,11 +2,11 @@ import {useCallback,useEffect,useRef,useState,type CSSProperties,type FormEvent,
 import {Ticket as TicketIcon,CalendarClock,ListOrdered,ChartNoAxesCombined,ChartColumn,QrCode,ScanQrCode,Plus,Pencil,Trash2,Pause,Play,RefreshCw,Search,TriangleAlert,ChevronRight,Download,Printer,KeyRound,PanelLeftClose,PanelLeftOpen,ShieldCheck,Wifi,DatabaseBackup,LockKeyhole,Users,XCircle,ExternalLink,Cloud,CircleCheck,MapPin,Hourglass,Layers,CopyPlus,Trophy} from 'lucide-react';
 import {ApiError,fmt} from './lib/api';
 import {backend,MODE} from './lib/backend';
-import type {AdminRound,AdminState,AdminTicket,AdminWaitEntry,ChildKind,EventInfo} from './lib/types';
-import {STATUS_LABELS,WAIT_LABELS,CHILD_KINDS,childSummary,eventKinds,kindsText} from './lib/types';
+import type {AdminRound,AdminState,AdminTicket,AdminWaitEntry,ChildKind,Children,EventInfo} from './lib/types';
+import {STATUS_LABELS,WAIT_LABELS,CHILD_KINDS,MAX_GUARDIANS,childSummary,eventKinds,kindsText,needsGuardian} from './lib/types';
 import {content} from './content';
 import {Dialog,Toast,useQr} from './ui';
-import {tone,partyText} from './visitor';
+import {tone,partyText,Stepper} from './visitor';
 import CheckinTab from './checkin';
 import ContestTab from './contest-admin';
 
@@ -98,6 +98,7 @@ export default function Admin(){
   const [ticketRound,setTicketRound]=useState<number|'all'|null>(null),[numberDraft,setNumberDraft]=useState(''),[numberQuery,setNumberQuery]=useState('');
   const [list,setList]=useState<AdminTicket[]>([]),[listBusy,setListBusy]=useState(false),[cancelTarget,setCancelTarget]=useState<AdminTicket|null>(null);
   const [cancelPassword,setCancelPassword]=useState('');
+  const [editTarget,setEditTarget]=useState<{ticket:AdminTicket;children:Children;guardians:number}|null>(null),[editPassword,setEditPassword]=useState('');
   const toastTimer=useRef<ReturnType<typeof setTimeout>|null>(null),listSerial=useRef(0);
 
   const notify=useCallback((text:string,error=false)=>{setToast({text,error});if(toastTimer.current)clearTimeout(toastTimer.current);toastTimer.current=setTimeout(()=>setToast(null),error?9000:5000);},[]);
@@ -190,6 +191,18 @@ export default function Admin(){
     setBusy(true);
     try{await (await backend()).adminCancel(t.id,t.checked_in_at?cancelPassword:undefined);notify(`${t.event_label?`${t.event_label} `:''}${t.round_label}の No.${t.number} を取り消しました。`);setCancelTarget(null);setCancelPassword('');await refresh();await loadTickets();}
     catch(e){if(e instanceof ApiError&&e.code==='password')setCancelPassword('');notify(e instanceof Error?e.message:'取り消せませんでした。',true);}
+    finally{setBusy(false);}
+  }
+  function startEdit(t:AdminTicket){
+    setEditPassword('');
+    setEditTarget({ticket:t,children:{preschool:0,elementary:0,junior_high:0,high_school:0,...t.children},guardians:t.guardians??0});
+  }
+  async function staffEdit(){
+    if(!editTarget)return;
+    const {ticket:t,children}=editTarget,guardians=needsGuardian(children)?editTarget.guardians:0;
+    setBusy(true);
+    try{await (await backend()).adminEditParty(t.id,{children,guardians},CHECKIN?editPassword:undefined);notify(`${t.event_label?`${t.event_label} `:''}${t.round_label}の No.${t.number} の人数を直しました。`);setEditTarget(null);setEditPassword('');await refresh();await loadTickets();}
+    catch(e){if(e instanceof ApiError&&e.code==='password')setEditPassword('');notify(e instanceof Error?e.message:'人数を直せませんでした。',true);}
     finally{setBusy(false);}
   }
   async function downloadCsv(){
@@ -323,7 +336,10 @@ export default function Admin(){
             <td>{t.status==='active'&&t.checked_in_at?<><span className="kind-pill checked">受付済み</span><span className="table-note">{time(t.checked_in_at)}</span></>:<><span className={`kind-pill ${t.status==='active'?'sale':'void'}`}>{t.status==='active'?(CHECKIN?'有効（未受付）':'有効'):t.cancelled_by==='staff'?'取消（スタッフ）':'取消（本人）'}</span>{t.cancelled_at&&<span className="table-note">{time(t.cancelled_at)}{t.checked_in_at?`（${time(t.checked_in_at)} に受付済みだった整理券）`:''}</span>}</>}</td>
             <td className="mono">{time(t.created_at)}</td>
             <td className="mono muted">{t.device}</td>
-            <td className="right">{t.status==='active'&&<button className="button small void-button" disabled={busy} onClick={()=>{setCancelPassword('');setCancelTarget(t);}}>取り消す</button>}</td>
+            <td className="right">{t.status==='active'&&<div className="row-actions">
+              {!t.checked_in_at&&!t.round_finished&&<button className="button small" disabled={busy} onClick={()=>startEdit(t)}><Pencil size={14}/>人数を直す</button>}
+              <button className="button small void-button" disabled={busy} onClick={()=>{setCancelPassword('');setCancelTarget(t);}}>取り消す</button>
+            </div>}</td>
           </tr>)}</tbody></table>
           {listBusy&&!list.length&&<div className="table-loading"><RefreshCw size={16} className="spin"/>読み込み中</div>}
           {!listBusy&&!list.length&&<div className="empty"><div className="empty-icon"><TicketIcon size={26}/></div><strong>{numberQuery?`No.${numberQuery} の整理券はありません`:'まだ整理券がありません'}</strong><p>{numberQuery?(allTickets?'どの回にもこの番号の整理券はありません。存在しない番号の場合は、偽造の可能性があります。':'番号と回を確かめてください。存在しない番号の場合は、偽造の可能性があります。'):'来場者が整理券を取ると、ここに表示されます。'}</p></div>}
@@ -482,6 +498,35 @@ export default function Admin(){
       </>}
       <div className="dialog-buttons"><button className="button" disabled={busy} onClick={()=>setCancelTarget(null)}>やめる</button><button className="button destructive" disabled={busy||(!!cancelTarget.checked_in_at&&cancelPassword.length!==7)} onClick={()=>staffCancel(cancelTarget)}>{busy&&<RefreshCw size={16} className="spin"/>}取り消す</button></div>
     </Dialog>}
+
+    {editTarget&&(()=>{
+      const {ticket:t,children}=editTarget;
+      const round=rounds.find(r=>r.id===t.round_id);
+      const allowed=eventKinds(events.find(e=>e.id===round?.event_id));
+      const total=CHILD_KINDS.reduce((s,k)=>s+children[k.key],0);
+      const max=round?.max_party??total,room=round?round.remaining+t.party_size:total;
+      const guardian=needsGuardian(children),guardians=guardian?editTarget.guardians:0;
+      const changed=CHILD_KINDS.some(k=>children[k.key]!==(t.children?.[k.key]??0))||guardians!==(t.guardians??0);
+      const ready=total>=1&&total<=max&&total<=room&&changed&&(!CHECKIN||editPassword.length===7);
+      return <Dialog title="人数を直す" busy={busy} onClose={()=>setEditTarget(null)}>
+        <span className="dialog-symbol"><Users size={24}/></span>
+        <h2>No.{t.number} の人数を直す</h2>
+        <p className="dialog-description">{t.event_label?`${t.event_label} `:''}{t.round_label}（開演 {t.starts_time}）。今は {partyText(t)} です。1枚で子ども {max} 名まで、この整理券は子ども {room} 名まで増やせます。</p>
+        <div className="party-form">
+          {CHILD_KINDS.map(k=><Stepper key={k.key} label={k.label} value={children[k.key]} min={0} canAdd={total<Math.min(max,room)} disabled={busy} off={!allowed.includes(k.key)&&children[k.key]===0} onChange={v=>setEditTarget({...editTarget,children:{...children,[k.key]:v}})}/>)}
+          {guardian&&<div className="party-guardian">
+            <Stepper label="保護者" note="定員には数えません" value={editTarget.guardians} min={0} canAdd={editTarget.guardians<MAX_GUARDIANS} disabled={busy} onChange={v=>setEditTarget({...editTarget,guardians:v})}/>
+          </div>}
+        </div>
+        <div className="confirm-values"><div className="emphasis"><span>子ども</span><strong>{total} 名</strong></div>{guardian&&<div><span>保護者</span><strong>{guardians} 名</strong></div>}</div>
+        <p className="dialog-description">直した人数は、来場者のスマホの整理券にも表示されます。{WAITLIST?'減らして空いた分は、キャンセル待ちの人に繰り上がります。':''}</p>
+        {CHECKIN&&<>
+          <label className="form-label" htmlFor="edit-password">取消用のパスワード（7桁）</label>
+          <input id="edit-password" className="text-input mono" type="password" inputMode="numeric" autoComplete="off" maxLength={7} value={editPassword} onChange={e=>/^\d{0,7}$/.test(e.target.value)&&setEditPassword(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&ready&&!busy)staffEdit();}}/>
+        </>}
+        <div className="dialog-buttons"><button className="button" disabled={busy} onClick={()=>setEditTarget(null)}>やめる</button><button className="button primary" disabled={busy||!ready} onClick={staffEdit}>{busy?<RefreshCw size={16} className="spin"/>:<Pencil size={16}/>}直す</button></div>
+      </Dialog>;
+    })()}
     <Toast toast={toast} onClose={()=>setToast(null)}/>
   </div>;
 }

@@ -132,11 +132,11 @@ test('v1のデータは、起動時に区分・保護者の列を追加して引
   try{
     const row=storage.sqlite.prepare('SELECT party_size,preschool,guardians,name FROM tickets').get();
     assert.deepEqual({...row},{party_size:2,preschool:0,guardians:0,name:''});
-    assert.equal(storage.sqlite.prepare('SELECT MAX(version) AS v FROM app_migrations').get().v,6);
+    assert.equal(storage.sqlite.prepare('SELECT MAX(version) AS v FROM app_migrations').get().v,7);
     const round=storage.sqlite.prepare('SELECT r.duration_minutes,e.label FROM rounds r JOIN events e ON e.id=r.event_id').get();
     assert.deepEqual({...round},{duration_minutes:60,label:'ステージ公演'});
-    assert.throws(()=>storage.sqlite.prepare('UPDATE tickets SET guardians=3').run(),/取消以外/);
-    assert.throws(()=>storage.sqlite.prepare("UPDATE tickets SET name='x'").run(),/取消以外/);
+    assert.throws(()=>storage.sqlite.prepare('UPDATE tickets SET number=5').run(),/以外の変更/);
+    assert.throws(()=>storage.sqlite.prepare("UPDATE tickets SET name='x'").run(),/以外の変更/);
   }finally{storage.close();}
 });
 
@@ -179,6 +179,37 @@ test('取消: 本人は開演前まで、スタッフはいつでも。番号は
   assert.equal(looked.value.tickets[0].status,'cancelled');assert.equal(looked.value.tickets[0].cancelled_by,'staff');assert.equal(looked.value.tickets[1],null);
   const found=await call(app.url,'api/public/request',{requestId:randomUUID(),deviceId:device});
   assert.equal(found.value.ticket,null);
+});
+
+test('人数の修正: スタッフは有効な整理券の人数を、上限・残り・対象の範囲で直せる',async t=>{
+  const {app,clock,dir}=await setup(t);const id=await addRound(app,{capacity:6,maxParty:4});
+  const a=(await issue(app,id,1)).value.ticket;await issue(app,id,3);
+  const edit=(ticket,children,guardians=0)=>call(app.url,'api/admin/edit',{id:ticket.id,children,guardians});
+  const r1=await edit(a,{high_school:1,junior_high:1});
+  assert.equal(r1.status,200,JSON.stringify(r1.value));assert.equal(r1.value.changed,true);
+  assert.equal(r1.value.ticket.party_size,2);assert.deepEqual(r1.value.ticket.children,{preschool:0,elementary:0,junior_high:1,high_school:1});
+  assert.equal((await publicRound(app,id)).remaining,1);
+  assert.equal((await edit(a,{high_school:1,junior_high:1})).value.changed,false);
+  assert.equal((await edit(a,{high_school:4})).value.code,'remaining');
+  assert.equal((await edit(a,{high_school:0})).status,400);
+  const r2=await edit(a,{elementary:1,high_school:2},2);
+  assert.equal(r2.status,200,JSON.stringify(r2.value));assert.equal(r2.value.ticket.guardians,2);
+  assert.equal((await edit(a,{high_school:1},3)).value.ticket.guardians,0);
+  assert.equal((await publicRound(app,id)).remaining,2);
+  const looked=(await call(app.url,'api/public/tickets',{items:[{id:a.id,token:a.token}]})).value.tickets[0];
+  assert.equal(looked.party_size,1);
+  assert.equal((await admin(app,{action:'event_update',id:1,label:'ステージ',venue:'',notice:'',kinds:['high_school']})).status,200);
+  assert.equal((await edit(a,{junior_high:1})).value.code,'kinds');
+  assert.equal((await admin(app,{action:'update',id,eventId:1,label:'10:00の回',startsTime:'10:00',opensTime:'09:00',closesTime:'10:00',capacity:10,maxParty:2,finishAfterMinutes:30,durationMinutes:30})).status,200);
+  assert.equal((await edit(a,{high_school:3})).value.code,'party');
+  assert.equal((await call(app.url,'api/admin/edit',{id:randomUUID(),children:{high_school:1}})).status,404);
+  clock.current=at('10:30');
+  assert.equal((await edit(a,{high_school:2})).value.code,'finished');
+  clock.current=at('09:40');
+  await call(app.url,'api/admin/cancel',{id:a.id});
+  assert.equal((await edit(a,{high_school:2})).value.code,'cancelled');
+  const db=new DatabaseSync(join(dir,'data/seiriken.sqlite3'));
+  try{assert.equal(db.prepare("SELECT COUNT(*) AS n FROM operations WHERE action='staff_edit'").get().n,3);}finally{db.close();}
 });
 
 test('イベントと時間の重なり: 開演〜終演が重なる回の整理券は同じ端末で持てない',async t=>{
@@ -307,7 +338,7 @@ test('再起動後も記録を保持し、CSVはexportsにも保存、自動バ�
   assert.equal(copy.prepare('SELECT COUNT(*) AS n FROM tickets').get().n,21);
   copy.close();
   assert.throws(()=>again.storage.sqlite.prepare('DELETE FROM tickets').run(),/削除できません/);
-  assert.throws(()=>again.storage.sqlite.prepare('UPDATE tickets SET party_size=9').run(),/取消以外/);
+  assert.throws(()=>again.storage.sqlite.prepare('UPDATE tickets SET party_size=9').run(),/以外の変更/);
 });
 
 test('Wi-Fi経由: 来場者はコードなしで使え、運営画面はスタッフコードが必要',async t=>{
@@ -317,6 +348,7 @@ test('Wi-Fi経由: 来場者はコードなしで使え、運営画面はスタ�
   const base=`http://${address}:${app.port}/`;
   assert.equal((await call(base,'api/public/state')).status,200);
   assert.equal((await call(base,'api/admin/state')).status,401);
+  assert.equal((await call(base,'api/admin/edit',{id:randomUUID(),children:{high_school:1}})).status,401);
   assert.equal((await call(base,'api/admin/login',{code:'00000000'})).status,403);
   const ok=await call(base,'api/admin/login',{code:app.storage.staffCode});
   assert.equal(ok.status,200);

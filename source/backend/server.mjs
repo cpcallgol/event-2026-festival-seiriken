@@ -6,7 +6,7 @@ import {createHash,createHmac,randomBytes,timingSafeEqual} from 'node:crypto';
 import {networkInterfaces} from 'node:os';
 import {spawn} from 'node:child_process';
 import {openStorage} from './storage.mjs';
-import {SeirikenError,adminOperation,adminState,cancelByStaff,cancelByVisitor,ensureSettings,findRequest,issueTicket,listTickets,lookupTickets,publicState,ticketsCsv} from './lib/seiriken-service.mjs';
+import {SeirikenError,adminOperation,adminState,cancelByStaff,cancelByVisitor,editPartyByStaff,ensureSettings,findRequest,issueTicket,listTickets,lookupTickets,publicState,ticketsCsv} from './lib/seiriken-service.mjs';
 
 const APP_ID='koukasai-seiriken-portable-v1';
 export const DEFAULT_PORT=8766;
@@ -125,6 +125,7 @@ export async function startApplication(options={}){
    const body=await readJson(req);
    if(path==='operation'){json(res,200,adminOperation(storage,body,clock()));changed();return;}
    if(path==='cancel'){const result=cancelByStaff(storage,body,clock());if(!result.replayed)changed();json(res,200,result);return;}
+   if(path==='edit'){const result=editPartyByStaff(storage,body,clock());if(result.changed)changed();json(res,200,result);return;}
    if(path==='backup'){const filename=await makeBackup('manual');json(res,200,{filename});return;}
    throw new SeirikenError('この操作は利用できません。',404);
  }

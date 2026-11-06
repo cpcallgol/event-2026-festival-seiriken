@@ -221,6 +221,30 @@ export function cancelByStaff(storage,body,now){
   });
 }
 
+export function editPartyByStaff(storage,body,now){
+  const id=uuid(body?.id,'整理券');
+  const party=partyInput(body);
+  const {sqlite}=storage;
+  return storage.transaction(()=>{
+    const found=ticketWithRound(sqlite,id);
+    if(!found)throw new SeirikenError('整理券が見つかりません。',404,'not_found');
+    const {t}=found,date=eventDate(sqlite);
+    if(t.status!=='active')throw new SeirikenError('この整理券は取り消されているため、人数を直せません。',409,'cancelled');
+    const row=roundRow(sqlite,t.round_id);
+    if(now.getTime()>=roundTimes(row,date).finishes.getTime())throw new SeirikenError('この回は終了したため、人数を直せません。',409,'finished');
+    const before={...childrenOf(t),guardians:t.guardians??0};
+    if(CHILD_KINDS.every(([key])=>before[key]===party.children[key])&&before.guardians===party.guardians)return {ticket:adminTicketView(t,found.round,date,now),changed:false};
+    checkKinds(row,party.children);
+    if(party.total>row.max_party)throw new SeirikenError(`1枚で申し込めるのは、子ども ${row.max_party} 名までです。`,400,'party');
+    const remaining=Math.max(0,row.capacity_people-row.used_people);
+    if(party.total-t.party_size>remaining)throw new SeirikenError(`この回の残りは子ども ${remaining} 名分なので、子ども ${party.total} 名にはできません。`,409,'remaining');
+    sqlite.prepare('UPDATE tickets SET party_size=?,preschool=?,elementary=?,junior_high=?,high_school=?,guardians=? WHERE id=?')
+      .run(party.total,party.children.preschool,party.children.elementary,party.children.junior_high,party.children.high_school,party.guardians,id);
+    record(sqlite,now,'staff_edit',{ticket:id,round:row.id,number:t.number,before,after:{...party.children,guardians:party.guardians}});
+    return {ticket:adminTicketView(sqlite.prepare('SELECT * FROM tickets WHERE id=?').get(id),found.round,date,now),changed:true};
+  });
+}
+
 function adminTicketView(t,round,date,now){
   return {...ticketView(t,round,date,now,false),device:t.device_id.slice(0,8)};
 }

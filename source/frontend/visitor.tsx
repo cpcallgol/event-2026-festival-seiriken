@@ -466,7 +466,7 @@ function WaitCard({w,suggestions,eventOf,onLeave,onDismiss}:{w:WaitEntry;suggest
   </article>;
 }
 
-function Stepper({label,note,value,min,canAdd,disabled,off,onChange}:{label:string;note?:string;value:number;min:number;canAdd:boolean;disabled:boolean;off?:boolean;onChange:(v:number)=>void}){
+export function Stepper({label,note,value,min,canAdd,disabled,off,onChange}:{label:string;note?:string;value:number;min:number;canAdd:boolean;disabled:boolean;off?:boolean;onChange:(v:number)=>void}){
   if(off)return <div className="party-row off" aria-disabled="true">
     <span className="party-label">{label}<small>このイベントは対象外です</small></span>
     <span className="party-off">対象外</span>

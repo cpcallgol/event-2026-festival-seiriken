@@ -6,6 +6,7 @@ export type SavedWait={id:string;token:string;entry?:WaitEntry};
 export type IssueInput={roundId:number;children:Children;guardians:number;deviceId:string;requestId:string};
 export type LoginInput={code?:string;email?:string;password?:string};
 export type CheckinInput={roundId:number;code?:string;number?:number};
+export type PartyInput={children:Children;guardians:number};
 export type VoteInput={contestId:number;numbers:number[];deviceId:string;requestId:string};
 
 export type Backend={
@@ -23,6 +24,7 @@ export type Backend={
   adminOperation(body:Record<string,unknown>):Promise<void>;
   listTickets(roundId:number|null,number?:string):Promise<AdminTicket[]>;
   adminCancel(id:string,password?:string):Promise<void>;
+  adminEditParty(id:string,input:PartyInput,password?:string):Promise<void>;
   listWaitlist(roundId:number):Promise<AdminWaitEntry[]>;
   checkin(input:CheckinInput):Promise<{ticket:AdminTicket;replayed:boolean}>;
   exportCsv():Promise<{blob:Blob;filename:string}>;
@@ -54,6 +56,7 @@ const localBackend:Backend={
     return (await api<{tickets:AdminTicket[]}>(`/api/admin/tickets?${q}`)).tickets;
   },
   async adminCancel(id){await api('/api/admin/cancel',{id});},
+  async adminEditParty(id,input){await api('/api/admin/edit',{id,...input});},
   async listWaitlist(){return [];},
   async checkin(){throw new ApiError('入場受付はオンライン版（Supabase）だけで使えます。',400,'invalid');},
   async exportCsv(){

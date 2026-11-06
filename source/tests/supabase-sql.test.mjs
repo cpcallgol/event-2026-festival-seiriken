@@ -8,6 +8,7 @@ import {PGlite} from '@electric-sql/pglite';
 
 const migrations=['001_init.sql','002_children.sql','003_name.sql','004_checkin.sql','005_events_waitlist.sql','006_cancel_checked_in.sql','007_list_all_tickets.sql','008_wait_blocks_overlap.sql','009_wait_partial.sql','010_event_kinds.sql','011_contest.sql'].map(f=>readFileSync(new URL('../../supabase/migrations/'+f,import.meta.url),'utf8'));
 const noLogin=readFileSync(new URL('../../supabase/migrations/012_no_login.sql',import.meta.url),'utf8');
+const editParty=readFileSync(new URL('../../supabase/migrations/013_edit_party.sql',import.meta.url),'utf8');
 const STAFF='00000000-0000-4000-8000-000000000001';
 const jst=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'});
 const day=offset=>jst.format(new Date(Date.now()+offset*86400000));
@@ -76,6 +77,43 @@ test('012 のあとは、ログインしていなくても運営用の関数を�
   await assert.rejects(as(db,'anon',"select private.set_cancel_password('1111111')"),/permission denied/);
   await assert.rejects(as(db,'anon',"select private.admin_operation_base('{}'::jsonb)"),/permission denied/);
   await assert.rejects(as(db,'anon',"select * from private.secrets"),/permission denied/);
+});
+
+test('013: スタッフはパスワードを入れて、有効で受付前の整理券の人数を直せる（減らした分は繰り上げ）', async()=>{
+  const db=await setup();
+  await db.exec(editParty);
+  await db.exec(editParty);
+  const {id}=await op(db,{...round,capacity:4,maxParty:3});
+  await op(db,{action:'waitlist_on',id});
+  const a=(await call(db,'anon','issue_ticket',[id,kids(1),0,randomUUID(),randomUUID()])).ticket;
+  const b=(await call(db,'anon','issue_ticket',[id,kids(3),0,randomUUID(),randomUUID()])).ticket;
+  const edit=(t,children,guardians=0,pw='7654321')=>call(db,'staff','admin_edit_party',[t.id,JSON.stringify(children),guardians,pw]);
+  await fails(edit(a,{high_school:2}),'password');
+  await db.query("select private.set_cancel_password('7654321')");
+  await fails(edit(a,{high_school:2},0,null),'password');
+  await fails(edit(a,{high_school:2},0,'1111111'),'password');
+  await fails(call(db,'anon','admin_edit_party',[a.id,JSON.stringify({high_school:2}),0,'7654321']),'login');
+  await fails(edit(a,{high_school:2}),'remaining');
+  await fails(edit(a,{high_school:0}),'invalid');
+  const w=(await call(db,'anon','join_waitlist',[id,kids(1),0,randomUUID(),randomUUID()])).entry;
+  const r=await edit(b,{high_school:2});
+  assert.equal(r.changed,true);assert.equal(r.ticket.party_size,2);assert.deepEqual(r.ticket.children,{preschool:0,elementary:0,junior_high:0,high_school:2});
+  assert.equal((await call(db,'anon','lookup_waitlist',[JSON.stringify([{id:w.id,token:w.token}])])).entries[0].status,'promoted');
+  assert.equal((await call(db,'anon','public_state')).rounds[0].remaining,0);
+  assert.equal((await edit(b,{high_school:2})).changed,false);
+  const visitor=(await call(db,'anon','lookup_tickets',[JSON.stringify([{id:b.id,token:b.token}])])).tickets[0];
+  assert.equal(visitor.party_size,2);
+  await fails(edit(a,{high_school:4}),'party');
+  await op(db,{action:'event_update',id:1,label:'ステージ',venue:'体育館',notice:'',kinds:['high_school']});
+  await fails(edit(a,{junior_high:1}),'kinds');
+  await call(db,'staff','admin_checkin',[id,a.checkin_code,null]);
+  await fails(edit(a,{high_school:2}),'checked_in');
+  await call(db,'staff','admin_cancel',[b.id]);
+  await fails(edit(b,{high_school:1}),'cancelled');
+  await assert.rejects(db.query(`update public.tickets set party_size = 9 where id = '${b.id}'`),/以外の変更/);
+  await assert.rejects(db.query(`update public.tickets set number = 99 where id = '${a.id}'`),/以外の変更/);
+  const log=await db.query("select details from public.operations where action='staff_edit'");
+  assert.equal(log.rows.length,1);assert.equal(log.rows[0].details.before.high_school,3);assert.equal(log.rows[0].details.after.high_school,2);
 });
 
 test('受付前・受付中・一時停止・受付終了・終了した回の判定', async()=>{
