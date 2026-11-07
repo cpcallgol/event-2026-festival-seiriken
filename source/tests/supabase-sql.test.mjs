@@ -9,6 +9,7 @@ import {PGlite} from '@electric-sql/pglite';
 const migrations=['001_init.sql','002_children.sql','003_name.sql','004_checkin.sql','005_events_waitlist.sql','006_cancel_checked_in.sql','007_list_all_tickets.sql','008_wait_blocks_overlap.sql','009_wait_partial.sql','010_event_kinds.sql','011_contest.sql'].map(f=>readFileSync(new URL('../../supabase/migrations/'+f,import.meta.url),'utf8'));
 const noLogin=readFileSync(new URL('../../supabase/migrations/012_no_login.sql',import.meta.url),'utf8');
 const editParty=readFileSync(new URL('../../supabase/migrations/013_edit_party.sql',import.meta.url),'utf8');
+const contestAdjust=readFileSync(new URL('../../supabase/migrations/014_contest_adjust.sql',import.meta.url),'utf8');
 const STAFF='00000000-0000-4000-8000-000000000001';
 const jst=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'});
 const day=offset=>jst.format(new Date(Date.now()+offset*86400000));
@@ -429,6 +430,45 @@ test('コンテストの投票: 1位〜3位を番号で選び、1端末1回。�
   await admin({action:'contest_reset',id:two});
   await admin({action:'contest_delete',id:two});
   assert.equal((await pub()).length,1);
+});
+
+test('014: 調整点は投票の点に足して順位を決める。パスワードが必要で、投票は消えない', async()=>{
+  const db=await setup();
+  const id=(await call(db,'anon','contest_state')).contests[0].id;
+  const admin=body=>call(db,'staff','admin_contest',[JSON.stringify(body)]);
+  await admin({action:'contest_update',id,label:'仮装コンテスト',opensTime:'00:00',closesTime:'23:59'});
+  for(const [n,name] of [[1,'A'],[2,'B'],[3,'C']])await admin({action:'entry_create',contestId:id,number:n,name});
+  const vote=numbers=>call(db,'anon','cast_vote',[id,numbers,randomUUID(),randomUUID()]);
+  await vote([1,2,3]);await vote([1,3,2]);
+  await db.exec(editParty);
+  await db.exec(contestAdjust);
+  await db.exec(contestAdjust);
+  const ranking=async()=>(await call(db,'staff','admin_contest_state')).contests.find(c=>c.id===id);
+  const s=await ranking();
+  // A: 1位2票=6点 / B: 2位1票+3位1票=3点 / C: 同じく3点（1位の数も同じなので同順位）
+  assert.deepEqual(s.entries.map(e=>[e.number,e.vote_points,e.adjust,e.points,e.rank]),[[1,6,0,6,1],[2,3,0,3,2],[3,3,0,3,2]]);
+  const [a,b]=s.entries;
+  const adjust=(entry,value,pw='7654321')=>call(db,'staff','admin_contest_adjust',[entry.id,value,pw]);
+  await fails(adjust(a,-5),'password');
+  await db.query("select private.set_cancel_password('7654321')");
+  await fails(adjust(a,-5,'1111111'),'password');
+  await fails(adjust(a,-5,null),'password');
+  await fails(adjust(a,10000),'invalid');
+  await fails(call(db,'staff','admin_contest_adjust',[999,1,'7654321']),'not_found');
+  await fails(call(db,'anon','admin_contest_adjust',[a.id,-5,'7654321']),'login');
+  assert.equal((await adjust(a,-5)).changed,true);
+  assert.equal((await adjust(a,-5)).changed,false);
+  await adjust(b,2);
+  // A: 6-5=1点 / B: 3+2=5点 / C: 3点
+  const after=await ranking();
+  assert.equal(after.votes,2);
+  assert.deepEqual(after.entries.map(e=>[e.number,e.vote_points,e.adjust,e.points,e.rank]),[[1,6,-5,1,3],[2,3,2,5,1],[3,3,0,3,2]]);
+  assert.equal((await call(db,'anon','contest_state')).contests[0].entries[0].adjust,undefined);
+  await assert.rejects(as(db,'anon','select * from public.contest_entries'),/permission denied/);
+  const log=await db.query("select details from public.operations where action='contest_adjust' order by id");
+  assert.deepEqual(log.rows.map(r=>[r.details.number,r.details.before,r.details.after]),[[1,0,-5],[2,0,2]]);
+  await db.exec(noLogin);
+  assert.equal((await call(db,'anon','admin_contest_adjust',[a.id,0,'7654321'])).changed,true);
 });
 
 test('時間の重なり: 開演〜終演が重なる回の整理券は同じ端末で持てない', async()=>{

@@ -12,6 +12,8 @@ type EntryForm={id?:number;number:string;name:string;team:string;theme:string};
 const isTime=(v:string)=>/^([01]\d|2[0-3]):[0-5]\d$/.test(v);
 const csvCell=(v:unknown)=>{const s=String(v??'');return /[",\r\n]/.test(s)||/^[=+\-@\t\r]/.test(s)?`"${(/^[=+\-@\t\r]/.test(s)?"'":'')+s.replace(/"/g,'""')}"`:s;};
 const byRank=(a:ContestEntry,b:ContestEntry)=>(a.rank??0)-(b.rank??0)||a.number-b.number;
+const votePoints=(e:ContestEntry)=>e.vote_points??e.points??0;
+const signed=(n:number)=>n>0?`+${fmt(n)}`:n<0?`−${fmt(-n)}`:'0';
 
 export default function ContestTab({notify,onLogin}:{notify:(text:string,error?:boolean)=>void;onLogin:()=>void}){
   const [state,setState]=useState<AdminContestState|null>(null);
@@ -19,6 +21,7 @@ export default function ContestTab({notify,onLogin}:{notify:(text:string,error?:
   const [busy,setBusy]=useState(false),[error,setError]=useState('');
   const [contestForm,setContestForm]=useState<ContestForm|null>(null),[entryForm,setEntryForm]=useState<EntryForm|null>(null);
   const [confirm,setConfirm]=useState<{kind:'contest_delete'|'contest_reset'|'entry_delete';contest:Contest;entry?:ContestEntry}|null>(null);
+  const [adjustForm,setAdjustForm]=useState<{entry:ContestEntry;value:string;password:string}|null>(null);
 
   const refresh=useCallback(async()=>{
     try{setState(await (await backend()).adminContestState());}
@@ -66,10 +69,20 @@ export default function ContestTab({notify,onLogin}:{notify:(text:string,error?:
       :await run({action:kind,id:c.id},`${c.label}を削除しました。`);
     if(ok){setConfirm(null);if(kind==='contest_delete')setSelected(null);}
   }
+  async function saveAdjust(){
+    if(!adjustForm)return;
+    const {entry,value,password}=adjustForm;
+    if(!/^-?\d{1,4}$/.test(value)){setError('調整点は -9999〜9999 の整数で入力してください。');return;}
+    if(!/^\d{7}$/.test(password)){setError('取消用のパスワード（7桁）を入力してください。');return;}
+    setError('');setBusy(true);
+    try{await (await backend()).adminContestAdjust(entry.id!,Number(value),password);notify(`No.${entry.number} の調整点を ${signed(Number(value))} 点にしました。`);setAdjustForm(null);await refresh();}
+    catch(e){if(e instanceof ApiError&&e.code==='password')setAdjustForm({...adjustForm,password:''});const m=e instanceof Error?e.message:'保存できませんでした。';setError(m);notify(m,true);}
+    finally{setBusy(false);}
+  }
   function downloadCsv(){
     if(!contest)return;
-    const head=['順位','エントリー番号','名前','学年と学科','テーマ','合計点','1位の票','2位の票','3位の票'];
-    const lines=[...contest.entries].sort(byRank).map(e=>[e.rank,e.number,e.name,e.team,e.theme,e.points,e.first,e.second,e.third].map(csvCell).join(','));
+    const head=['順位','エントリー番号','名前','学年と学科','テーマ','投票の点','調整点','合計点','1位の票','2位の票','3位の票'];
+    const lines=[...contest.entries].sort(byRank).map(e=>[e.rank,e.number,e.name,e.team,e.theme,votePoints(e),e.adjust??0,e.points,e.first,e.second,e.third].map(csvCell).join(','));
     const text='\uFEFF'+[`${csvCell(contest.label)},投票数,${contest.votes??0}`,head.join(','),...lines].join('\r\n')+'\r\n';
     const blob=new Blob([text],{type:'text/csv;charset=utf-8'}),href=URL.createObjectURL(blob),a=document.createElement('a');
     a.href=href;a.download=`contest-${contest.id}-results.csv`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(href),30000);
@@ -95,11 +108,13 @@ export default function ContestTab({notify,onLogin}:{notify:(text:string,error?:
     </section>
 
     {contest&&<>
-      <section className="panel no-print"><div className="panel-heading"><div><h2><Trophy size={18}/>順位</h2><p className="muted tiny">1位＝3点・2位＝2点・3位＝1点の合計です。同じ点数なら、1位に選ばれた数が多い方が上になります。来場者には表示されません。</p></div><button className="button small" disabled={!contest.entries.length} onClick={downloadCsv}><Download size={16}/>CSVを出力</button></div>
-        {contest.entries.length?<div className="table-scroll"><table><thead><tr><th>順位</th><th>エントリー</th><th>学年と学科</th><th className="right">合計点</th><th className="right">1位</th><th className="right">2位</th><th className="right">3位</th></tr></thead><tbody>{[...contest.entries].sort(byRank).map(e=><tr key={e.number}>
-          <td><strong className={`contest-rank rank-${e.rank}`}>{(contest.votes??0)?`${e.rank} 位`:'—'}</strong></td>
+      <section className="panel no-print"><div className="panel-heading"><div><h2><Trophy size={18}/>順位</h2><p className="muted tiny">合計点は、投票の点（1位＝3点・2位＝2点・3位＝1点）に調整点を足したものです。同じ点数なら、1位に選ばれた数が多い方が上になります。来場者には表示されません。</p></div><button className="button small" disabled={!contest.entries.length} onClick={downloadCsv}><Download size={16}/>CSVを出力</button></div>
+        {contest.entries.length?<div className="table-scroll"><table><thead><tr><th>順位</th><th>エントリー</th><th>学年と学科</th><th className="right">投票の点</th><th className="right">調整点</th><th className="right">合計点</th><th className="right">1位</th><th className="right">2位</th><th className="right">3位</th></tr></thead><tbody>{[...contest.entries].sort(byRank).map(e=><tr key={e.number}>
+          <td><strong className={`contest-rank rank-${e.rank}`}>{(contest.votes??0)||contest.entries.some(x=>x.adjust)?`${e.rank} 位`:'—'}</strong></td>
           <td><strong>No.{e.number}</strong> {e.name}{e.theme&&<span className="table-note">{e.theme}</span>}</td>
           <td>{e.team||<span className="muted">—</span>}</td>
+          <td className="right mono">{fmt(votePoints(e))} 点</td>
+          <td className="right mono">{e.adjust?`${signed(e.adjust)} 点`:<span className="muted">—</span>}</td>
           <td className="right mono"><strong>{fmt(e.points??0)}</strong> 点</td>
           <td className="right mono">{fmt(e.first??0)}</td><td className="right mono">{fmt(e.second??0)}</td><td className="right mono">{fmt(e.third??0)}</td>
         </tr>)}</tbody></table></div>:<div className="empty"><strong>出場者がまだいません</strong></div>}
@@ -107,8 +122,9 @@ export default function ContestTab({notify,onLogin}:{notify:(text:string,error?:
       </section>
 
       <section className="panel no-print"><div className="panel-heading"><h2><Users size={18}/>出場者</h2><button className="button primary small" disabled={busy} onClick={()=>{setError('');setEntryForm({number:nextNumber(),name:'',team:'',theme:''});}}><Plus size={16}/>出場者を追加</button></div>
-        {contest.entries.length?<div className="table-scroll"><table><thead><tr><th>エントリー番号</th><th>名前</th><th>学年と学科</th><th>テーマ</th><th className="right">操作</th></tr></thead><tbody>{contest.entries.map(e=>{const voted=(e.first??0)+(e.second??0)+(e.third??0)>0;return <tr key={e.number}>
+        {contest.entries.length?<div className="table-scroll"><table><thead><tr><th>エントリー番号</th><th>名前</th><th>学年と学科</th><th>テーマ</th><th className="right">調整点</th><th className="right">操作</th></tr></thead><tbody>{contest.entries.map(e=>{const voted=(e.first??0)+(e.second??0)+(e.third??0)>0;return <tr key={e.number}>
           <td><strong className="ticket-no">No.{e.number}</strong></td><td>{e.name}</td><td>{e.team||<span className="muted">—</span>}</td><td>{e.theme||<span className="muted">—</span>}</td>
+          <td className="right"><button className="button small" disabled={busy} onClick={()=>{setError('');setAdjustForm({entry:e,value:String(e.adjust??0),password:''});}}><span className="mono">{signed(e.adjust??0)} 点</span><Pencil size={14}/></button></td>
           <td className="right"><div className="row-actions">
             <button className="icon-button" disabled={busy} aria-label={`No.${e.number}を編集`} onClick={()=>{setError('');setEntryForm({id:e.id,number:String(e.number),name:e.name,team:e.team,theme:e.theme});}}><Pencil size={16}/></button>
             <button className="icon-button" disabled={busy||voted} title={voted?'投票が入っている出場者は削除できません':''} aria-label={`No.${e.number}を削除`} onClick={()=>setConfirm({kind:'entry_delete',contest,entry:e})}><Trash2 size={16}/></button>
@@ -166,6 +182,19 @@ export default function ContestTab({notify,onLogin}:{notify:(text:string,error?:
       <input id="n-theme" className="text-input" maxLength={100} value={entryForm.theme} placeholder="例: 魔法使い" onChange={e=>setEntryForm({...entryForm,theme:e.target.value})}/>
       {error&&<p className="field-hint negative" role="alert">{error}</p>}
       <div className="dialog-buttons spaced"><button className="button" disabled={busy} onClick={()=>setEntryForm(null)}>やめる</button><button className="button primary" disabled={busy} onClick={saveEntry}>{busy&&<RefreshCw size={16} className="spin"/>}{entryForm.id?'更新する':'追加する'}</button></div>
+    </Dialog>}
+
+    {adjustForm&&<Dialog title="調整点" busy={busy} onClose={()=>setAdjustForm(null)}>
+      <span className="dialog-eyebrow">ADJUST POINTS</span>
+      <h2>No.{adjustForm.entry.number} {adjustForm.entry.name} の調整点</h2>
+      <p className="dialog-description">投票の点（いま {fmt(votePoints(adjustForm.entry))} 点）に足す点数です。減らすときは「-10」のようにマイナスで入れます。0 にすると、調整なしに戻ります。投票そのものは変わりません。</p>
+      <label className="form-label" htmlFor="a-value">調整点</label>
+      <input id="a-value" className="text-input mono" inputMode="numeric" value={adjustForm.value} onChange={e=>/^-?\d{0,4}$/.test(e.target.value)&&setAdjustForm({...adjustForm,value:e.target.value})}/>
+      {/^-?\d{1,4}$/.test(adjustForm.value)&&<p className="field-hint">合計点は {fmt(votePoints(adjustForm.entry)+Number(adjustForm.value))} 点になります。</p>}
+      <label className="form-label" htmlFor="a-password">取消用のパスワード（7桁）</label>
+      <input id="a-password" className="text-input mono" type="password" inputMode="numeric" autoComplete="off" maxLength={7} value={adjustForm.password} onChange={e=>/^\d{0,7}$/.test(e.target.value)&&setAdjustForm({...adjustForm,password:e.target.value})} onKeyDown={e=>{if(e.key==='Enter'&&!busy)saveAdjust();}}/>
+      {error&&<p className="field-hint negative" role="alert">{error}</p>}
+      <div className="dialog-buttons spaced"><button className="button" disabled={busy} onClick={()=>setAdjustForm(null)}>やめる</button><button className="button primary" disabled={busy||!/^-?\d{1,4}$/.test(adjustForm.value)||adjustForm.password.length!==7} onClick={saveAdjust}>{busy&&<RefreshCw size={16} className="spin"/>}保存する</button></div>
     </Dialog>}
 
     {confirm&&<Dialog title="確認" busy={busy} onClose={()=>setConfirm(null)}>

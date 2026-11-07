@@ -83,5 +83,6 @@ export const supabaseBackend:Backend={
   contestState:deviceId=>rpc<ContestState>('contest_state',deviceId?{p_device_id:deviceId}:undefined),
   vote:input=>rpc('cast_vote',{p_contest_id:input.contestId,p_numbers:input.numbers,p_device_id:input.deviceId,p_request_id:input.requestId},25000),
   adminContestState:()=>rpc<AdminContestState>('admin_contest_state'),
-  async adminContest(body){await rpc('admin_contest',{p:body});}
+  async adminContest(body){await rpc('admin_contest',{p:body});},
+  async adminContestAdjust(entryId,adjust,password){await rpc('admin_contest_adjust',{p_entry_id:entryId,p_adjust:adjust,p_password:password});}
 };

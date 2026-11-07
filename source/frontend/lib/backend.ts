@@ -33,6 +33,7 @@ export type Backend={
   vote(input:VoteInput):Promise<{vote:Vote;replayed:boolean}>;
   adminContestState():Promise<AdminContestState>;
   adminContest(body:Record<string,unknown>):Promise<void>;
+  adminContestAdjust(entryId:number,adjust:number,password:string):Promise<void>;
 };
 const ONLINE_ONLY=()=>new ApiError('コンテストの投票は、インターネット版だけで使えます。',400,'invalid');
 
@@ -70,7 +71,8 @@ const localBackend:Backend={
   async contestState(){return {now:new Date().toISOString(),contests:[]};},
   async vote(){throw ONLINE_ONLY();},
   async adminContestState(){throw ONLINE_ONLY();},
-  async adminContest(){throw ONLINE_ONLY();}
+  async adminContest(){throw ONLINE_ONLY();},
+  async adminContestAdjust(){throw ONLINE_ONLY();}
 };
 
 let loaded:Promise<Backend>|null=null;

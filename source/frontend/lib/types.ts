@@ -67,7 +67,7 @@ export type AdminState={
 };
 
 export type ContestStatus='before'|'open'|'closed';
-export type ContestEntry={id?:number;number:number;name:string;team:string;theme:string;points?:number;first?:number;second?:number;third?:number;rank?:number};
+export type ContestEntry={id?:number;number:number;name:string;team:string;theme:string;vote_points?:number;adjust?:number;points?:number;first?:number;second?:number;third?:number;rank?:number};
 export type Contest={id:number;label:string;description:string;opens_time:string;closes_time:string;opens_at:string;closes_at:string;status:ContestStatus;entries:ContestEntry[];votes?:number;my_vote?:Vote|null};
 export type ContestState={now:string;contests:Contest[]};
 export type AdminContestState=ContestState&{eventDate:string};
